@@ -7,3 +7,4 @@ http://www.emgu.com/wiki/index.php/Main_Page
 
 Build instructions can be found here:
 http://www.emgu.com/wiki/index.php/Download_And_Installation#Building_from_Git
+0.0
