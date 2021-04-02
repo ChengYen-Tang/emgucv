@@ -9,8 +9,8 @@ on:
 jobs:
   build:
 
-    # runs-on: windows-latest
-    runs-on: [self-hosted, Windows]
+    runs-on: windows-latest
+    #runs-on: [self-hosted, Windows]
 
     # two days time out
     timeout-minutes: 2880
