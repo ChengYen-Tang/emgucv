@@ -4,14 +4,20 @@
 
 IF ((TARGET Emgu.CV.Platform.NetCore) AND (TARGET Emgu.CV.Platform.NetFramework))
   PROJECT(Emgu.CV.UI.nuget)
-  ADD_CUSTOM_TARGET(
-    ${PROJECT_NAME} ALL
-    COMMAND ${DOTNET_EXECUTABLE} pack -c ${DEFAULT_CS_CONFIG} "${CMAKE_CURRENT_SOURCE_DIR}/../../../Emgu.CV.Platform/DotNet/Core/Emgu.CV.Platform.NetCore.csproj" -p:NuspecFile="${CMAKE_CURRENT_SOURCE_DIR}/Package.nuspec" -o "${CMAKE_CURRENT_SOURCE_DIR}/../"
-    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-    )
-  
+
+  BUILD_NUGET_PACKAGE(
+    ${PROJECT_NAME} 
+	"${CMAKE_CURRENT_SOURCE_DIR}/../../../Emgu.CV.Platform/DotNet/Core/Emgu.CV.Platform.NetCore.csproj"  #csproj_file 
+	"${CMAKE_CURRENT_SOURCE_DIR}/Package.nuspec" #nuspec_file 
+	"${CMAKE_CURRENT_SOURCE_DIR}/../" #output_dir 
+	"${CMAKE_CURRENT_SOURCE_DIR}" #working_dir
+	) 
+
   ADD_DEPENDENCIES(${PROJECT_NAME} Emgu.CV.Platform.NetCore)
   ADD_DEPENDENCIES(${PROJECT_NAME} Emgu.CV.Platform.NetFramework)
+  IF (TARGET Emgu.CV.Bitmap.nuget)
+    ADD_DEPENDENCIES(${PROJECT_NAME} Emgu.CV.Bitmap.nuget)
+  ENDIF()
 
   if(ENABLE_SOLUTION_FOLDERS)
     set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER "nuget")

@@ -3,6 +3,7 @@
 //----------------------------------------------------------------------------
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using System.IO;
@@ -20,13 +21,22 @@ using System.Diagnostics;
 
 namespace Emgu.CV.Models
 {
+    /// <summary>
+    /// Tesseract Ocr model.
+    /// </summary>
     public class TesseractModel : DisposableObject, IProcessAndRenderModel
     {
         private String _modelFolderName = "tessdata";
         private Tesseract _ocr;
         private String _lang;
         private OcrEngineMode _mode;
-        private async Task InitTesseract(String lang, OcrEngineMode mode, System.Net.DownloadProgressChangedEventHandler onDownloadProgressChanged = null)
+
+#if UNITY_EDITOR || UNITY_IOS || UNITY_ANDROID || UNITY_STANDALONE
+        private IEnumerator
+#else
+        private async Task 
+#endif
+            InitTesseract(String lang, OcrEngineMode mode, System.Net.DownloadProgressChangedEventHandler onDownloadProgressChanged = null)
         {
             if (_ocr == null)
             {
@@ -36,7 +46,11 @@ namespace Emgu.CV.Models
 
                 if (onDownloadProgressChanged != null)
                     manager.OnDownloadProgressChanged += onDownloadProgressChanged;
+#if UNITY_EDITOR || UNITY_IOS || UNITY_ANDROID || UNITY_STANDALONE
+                yield return manager.Download();
+#else
                 await manager.Download();
+#endif
 
                 if (manager.AllFilesDownloaded)
                 {
@@ -59,11 +73,21 @@ namespace Emgu.CV.Models
                 _ocr = null;
             }
         }
+
+        /// <summary>
+        /// Release all the unmanaged memory associated to this tesseract OCR model.
+        /// </summary>
         protected override void DisposeObject()
         {
             Clear();
         }
 
+        /// <summary>
+        /// Process the input image and render into the output image
+        /// </summary>
+        /// <param name="imageIn">The input image</param>
+        /// <param name="imageOut">The output image, can be the same as imageIn, in which case we will render directly into the input image</param>
+        /// <returns>The messages that we want to display.</returns>
         public string ProcessAndRender(IInputArray imageIn, IInputOutputArray imageOut)
         {
             Stopwatch watch = Stopwatch.StartNew();
@@ -81,6 +105,12 @@ namespace Emgu.CV.Models
                 }
             }
 
+            Tesseract.Character[] characters = _ocr.GetCharacters();
+            foreach (Tesseract.Character c in characters)
+            {
+                CvInvoke.Rectangle(imageOut, c.Region, new MCvScalar(255, 0, 0));
+            }
+
             return String.Format(
                 "tesseract version {2}; lang: {0}; mode: {1}{3}Text Detected:{3}{4}",
                 _lang,
@@ -90,11 +120,26 @@ namespace Emgu.CV.Models
 
         }
 
-        public async Task Init(System.Net.DownloadProgressChangedEventHandler onDownloadProgressChanged = null, Object initOptions = null)
+        /// <summary>
+        /// Initialize the tesseract ocr model
+        /// </summary>
+        /// <param name="onDownloadProgressChanged">Call back method during download</param>
+        /// <param name="initOptions">Initialization options. None supported at the moment, any value passed will be ignored.</param>
+        /// <returns>Asyn task</returns>
+#if UNITY_EDITOR || UNITY_IOS || UNITY_ANDROID || UNITY_STANDALONE
+        public IEnumerator
+#else
+        public async Task 
+#endif
+            Init(System.Net.DownloadProgressChangedEventHandler onDownloadProgressChanged = null, Object initOptions = null)
         {
-            await InitTesseract("eng", OcrEngineMode.TesseractOnly, onDownloadProgressChanged);
+#if UNITY_EDITOR || UNITY_IOS || UNITY_ANDROID || UNITY_STANDALONE
+            yield return
+#else
+            await 
+#endif
+                InitTesseract("eng", OcrEngineMode.TesseractOnly, onDownloadProgressChanged);
         }
-
 
     }
 }

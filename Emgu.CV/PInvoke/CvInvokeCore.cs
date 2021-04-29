@@ -3053,6 +3053,41 @@ namespace Emgu.CV
 #endif
 
         /// <summary>
+        /// Replace OpenCV parallel_for backend.
+        /// </summary>
+        /// <param name="backendName">The name of the backend.</param>
+        /// <param name="propagateNumThreads">It true, the number of threads of the current enviroment will be passed to the new backend.</param>
+        /// <returns>True if backend is set</returns>
+        /// <remarks>This call is not thread-safe. Consider calling this function from the main() before any other OpenCV processing functions (and without any other created threads).</remarks>
+        public static bool SetParallelForBackend(String backendName, bool propagateNumThreads = true)
+        {
+            using (CvString csBackendName = new CvString(backendName))
+                return cveSetParallelForBackend(csBackendName, propagateNumThreads);
+        }
+
+        [DllImport(ExternLibrary, CallingConvention = CvInvoke.CvCallingConvention)]
+        [return: MarshalAs(CvInvoke.BoolMarshalType)]
+        private static extern bool cveSetParallelForBackend(IntPtr backendName, bool propagateNumThreads);
+
+        /// <summary>
+        /// Get a list of the available parallel backends.
+        /// </summary>
+        public static String[] AvailableParallelBackends
+        {
+            get
+            {
+                using (VectorOfCvString backendNames = new VectorOfCvString())
+                {
+                    cveGetParallelBackends(backendNames);
+                    return backendNames.ToArray();
+                }
+            }
+        }
+
+        [DllImport(ExternLibrary, CallingConvention = CvInvoke.CvCallingConvention)]
+        private static extern void cveGetParallelBackends(IntPtr backendNames);
+
+        /// <summary>
         /// Compares the corresponding elements of two arrays and fills the destination mask array:
         /// dst(I)=src1(I) op src2(I),
         /// dst(I) is set to 0xff (all '1'-bits) if the particular relation between the elements is true and 0 otherwise. 

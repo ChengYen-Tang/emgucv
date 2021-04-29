@@ -3,6 +3,7 @@
 //----------------------------------------------------------------------------
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using Emgu.CV;
 using Emgu.CV.CvEnum;
@@ -10,16 +11,23 @@ using Emgu.CV.Structure;
 using System.Drawing;
 using System.Diagnostics;
 using Emgu.CV.Util;
+#if !(UNITY_EDITOR || UNITY_IOS || UNITY_ANDROID || UNITY_STANDALONE)
 using Emgu.CV.Cuda;
+#endif
 using System.Threading.Tasks;
 using System.Net;
 using Emgu.Util;
 
 namespace Emgu.CV.Models
 {
+    /// <summary>
+    /// Pedestrian detector
+    /// </summary>
     public class PedestrianDetector : DisposableObject, IProcessAndRenderModel
     {
+#if !(UNITY_EDITOR || UNITY_IOS || UNITY_ANDROID || UNITY_STANDALONE)
         private CudaHOG _hogCuda;
+#endif
         private HOGDescriptor _hog;
 
         /// <summary>
@@ -27,22 +35,27 @@ namespace Emgu.CV.Models
         /// </summary>
         public void Clear()
         {
-            DisposeObject();
-        }
-
-        protected override void DisposeObject()
-        {
             if (_hog != null)
             {
                 _hog.Dispose();
                 _hog = null;
             }
 
+#if !(UNITY_EDITOR || UNITY_IOS || UNITY_ANDROID || UNITY_STANDALONE)
             if (_hogCuda != null)
             {
                 _hogCuda.Dispose();
                 _hog = null;
             }
+#endif
+        }
+
+        /// <summary>
+        /// Release the memory associated with this pedestrian detector
+        /// </summary>
+        protected override void DisposeObject()
+        {
+            Clear();
         }
 
         /// <summary>
@@ -50,29 +63,32 @@ namespace Emgu.CV.Models
         /// </summary>
         /// <param name="image">The image</param>
         /// <returns>The region where pedestrians are detected</returns>
-        public static Rectangle[] Find(IInputArray image, HOGDescriptor hog, CudaHOG hogCuda = null)
+        public Rectangle[] Find(IInputArray image)
         {
             Rectangle[] regions;
 
             using (InputArray iaImage = image.GetInputArray())
             {
+
+#if !(UNITY_EDITOR || UNITY_IOS || UNITY_ANDROID || UNITY_STANDALONE)
                 //if the input array is a GpuMat
                 //check if there is a compatible Cuda device to run pedestrian detection
-                if (iaImage.Kind == InputArray.Type.CudaGpuMat && hogCuda != null)
+                if (iaImage.Kind == InputArray.Type.CudaGpuMat && _hogCuda != null)
                 {
                     //this is the Cuda version
                     using (GpuMat cudaBgra = new GpuMat())
                     using (VectorOfRect vr = new VectorOfRect())
                     {
                         CudaInvoke.CvtColor(image, cudaBgra, ColorConversion.Bgr2Bgra);
-                        hogCuda.DetectMultiScale(cudaBgra, vr);
+                        _hogCuda.DetectMultiScale(cudaBgra, vr);
                         regions = vr.ToArray();
                     }
                 }
                 else
+#endif
                 {
                     //this is the CPU/OpenCL version
-                    MCvObjectDetection[] results = hog.DetectMultiScale(image);
+                    MCvObjectDetection[] results = _hog.DetectMultiScale(image);
                     regions = new Rectangle[results.Length];
                     for (int i = 0; i < results.Length; i++)
                         regions[i] = results[i].Rect;
@@ -82,11 +98,24 @@ namespace Emgu.CV.Models
             }
         }
 
+        /// <summary>
+        /// Initialize the pedestrian detection model
+        /// </summary>
+        /// <param name="onDownloadProgressChanged">Call back method during download</param>
+        /// <param name="initOptions">Initialization options. None supported at the moment, any value passed will be ignored.</param>
+        /// <returns>Asyn task</returns>
+#if UNITY_EDITOR || UNITY_IOS || UNITY_ANDROID || UNITY_STANDALONE
+        public IEnumerator Init(DownloadProgressChangedEventHandler onDownloadProgressChanged = null, Object initOptions = null)
+#else
         public async Task Init(DownloadProgressChangedEventHandler onDownloadProgressChanged = null, Object initOptions = null)
+#endif
         {
             _hog = new HOGDescriptor();
             _hog.SetSVMDetector(HOGDescriptor.GetDefaultPeopleDetector());
 
+#if (UNITY_EDITOR || UNITY_IOS || UNITY_ANDROID || UNITY_STANDALONE)
+            yield return null;
+#else
             if (CudaInvoke.HasCuda)
             {
                 _hogCuda = new CudaHOG(
@@ -96,13 +125,19 @@ namespace Emgu.CV.Models
                     new Size(8, 8));
                 _hogCuda.SetSVMDetector(_hogCuda.GetDefaultPeopleDetector());
             }
-
+#endif
         }
 
+        /// <summary>
+        /// Process the input image and render into the output image
+        /// </summary>
+        /// <param name="imageIn">The input image</param>
+        /// <param name="imageOut">The output image, can be the same as imageIn, in which case we will render directly into the input image</param>
+        /// <returns>The messages that we want to display.</returns>
         public string ProcessAndRender(IInputArray imageIn, IInputOutputArray imageOut)
         {
             Stopwatch watch = Stopwatch.StartNew();
-            Rectangle[] pedestrians = Find(imageIn, _hog, _hogCuda);
+            Rectangle[] pedestrians = Find(imageIn);
             watch.Stop();
 
             if (imageOut != imageIn)

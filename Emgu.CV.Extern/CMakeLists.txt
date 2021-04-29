@@ -10,6 +10,7 @@ project(cvextern)
 set(the_target ${PROJECT_NAME})
 
 INCLUDE_DIRECTORIES("${OPENCV_SUBFOLDER}/include/opencv")
+INCLUDE_DIRECTORIES("${OPENCV_SUBFOLDER}/modules/core/src/parallel")
 INCLUDE_DIRECTORIES("${OPENCV_SUBFOLDER}/include")
 INCLUDE_DIRECTORIES("${CMAKE_BINARY_DIR}/opencv/3rdparty/zlib")
 
@@ -1439,6 +1440,28 @@ ENDIF()
 	""
 	""
 	${HAVE_opencv_imgproc})
+  CREATE_OCV_CLASS_PROPERTY( 
+    "imgproc/IntelligentScissorsMB_property" 
+    "${CMAKE_CURRENT_SOURCE_DIR}/../Emgu.CV/Imgproc/IntelligentScissorsMB.g.cs"
+    "cv::segmentation::IntelligentScissorsMB" 
+    "IntelligentScissorsMB" 
+    "EdgeFeatureZeroCrossingParameters;GradientMagnitudeMaxLimit" 
+    "float;float" 
+    "propW;propW"
+    "EdgeFeatureZeroCrossingParameters;GradientMagnitudeMaxLimit" 
+    "float;float"
+    "Switch to Laplacian Zero-Crossing edge feature extractor and specify its parameters. This feature extractor is used by default according to article. Implementation has additional filtering for regions with low-amplitude noise. This filtering is enabled through parameter of minimal gradient amplitude (use some small value 4, 8, 16).;
+    Specify gradient magnitude max value threshold. Zero limit value is used to disable gradient magnitude thresholding (default behavior, as described in original article). Otherwize pixels with gradient magnitude greater than threshold have zero cost."
+    "Emgu.CV"
+    "CvInvoke"
+    "IntelligentScissorsMB"
+	""
+    "#include \"imgproc_c.h\""
+	""
+	""
+	${HAVE_opencv_imgproc})
+    
+
 
 ############################### imgproc code gen END ################################
 
@@ -2775,14 +2798,7 @@ FOREACH(CVEXTERN_OPTIONAL_DEP ${OPENCV_MODULE_NAME_CANDIDATES})
 ENDFOREACH()
 
 ############################### DEPTHAI START ##############################
-file(GLOB_RECURSE depthai_srcs "${PROJECT_SOURCE_DIR}/depthai/*.cpp")
-file(GLOB_RECURSE depthai_hdrs "${PROJECT_SOURCE_DIR}/depthai/*.h*")
-#message(STATUS ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>  depthai_srcs: ${depthai_srcs}")
-#message(STATUS ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>  depthai_hdrs: ${depthai_hdrs}")
-source_group("Src_depthai" FILES ${depthai_srcs})
-source_group("Include_depthai" FILES ${depthai_hdrs})
-LIST(APPEND extern_srcs ${depthai_srcs})
-LIST(APPEND extern_hdrs ${depthai_hdrs})
+
 
   CREATE_OCV_CLASS_PROPERTY( 
     "depthai/device_property" 
@@ -2860,6 +2876,15 @@ LIST(APPEND extern_hdrs ${depthai_hdrs})
 	""
 	"" 
 	${EMGU_CV_WITH_DEPTHAI})
+	
+file(GLOB_RECURSE depthai_srcs "${PROJECT_SOURCE_DIR}/depthai/*.cpp")
+file(GLOB_RECURSE depthai_hdrs "${PROJECT_SOURCE_DIR}/depthai/*.h*")
+#message(STATUS ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>  depthai_srcs: ${depthai_srcs}")
+#message(STATUS ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>  depthai_hdrs: ${depthai_hdrs}")
+source_group("Src_depthai" FILES ${depthai_srcs})
+source_group("Include_depthai" FILES ${depthai_hdrs})
+LIST(APPEND extern_srcs ${depthai_srcs})
+LIST(APPEND extern_hdrs ${depthai_hdrs})
 ############################### DEPTHAI END ################################
 
 IF(WIN32 AND CV_ICC)
@@ -3010,7 +3035,9 @@ IF(WITH_INF_ENGINE)
 	#MESSAGE(STATUS "^^^^^^^^^^^^^^  INF_TBB_DLL_NAMES: ${INF_TBB_DLL_NAMES}")
     FILE(GLOB INF_TBB_DEBUG_DLL_NAMES "${INF_TBB_ENGINE_DLL_DIRS}/*_debug.dll")
 	#MESSAGE(STATUS "^^^^^^^^^^^^^^  INF_TBB_DEBUG_DLL_NAMES: ${INF_TBB_DEBUG_DLL_NAMES}")
-    LIST(REMOVE_ITEM INF_TBB_DLL_NAMES ${INF_TBB_DEBUG_DLL_NAMES})
+    IF (INF_TBB_DEBUG_DLL_NAMES)
+      LIST(REMOVE_ITEM INF_TBB_DLL_NAMES ${INF_TBB_DEBUG_DLL_NAMES})
+    ENDIF()
 	LIST(APPEND CVEXTERN_DEPENDENCY_DLLS ${INF_TBB_DLL_NAMES})
     
     SET(INF_NGRAPH_DLL_DIRS "${IE_INCLUDE_DIR}/../../ngraph/lib")
@@ -3615,11 +3642,13 @@ IF (IOS)
   SET(IOS_RELEASE_FOLDER "")
   IF (IPHONESIMULATOR)
     SET(IOS_RELEASE_FOLDER "Release-iphonesimulator")
+    SET(IOS_RELEASE_FILENAME "libcvextern_simulator_${IOS_ARCH}.a")
   ELSEIF(IPHONEOS)
     SET(IOS_RELEASE_FOLDER "Release-iphoneos")
+    SET(IOS_RELEASE_FILENAME "libcvextern_iphoneos_${IOS_ARCH}.a")
   ENDIF()
   #MESSAGE(STATUS "<<<<<< IOS_RELEASE_FOLDER: ${IOS_RELEASE_FOLDER} >>>>>>") 
-  SET(LIBTOOL_LINKING_COMMAND libtool -static -o ${CMAKE_SOURCE_DIR}/libs/iOS/libcvextern_${IOS_ARCH}.a bin${UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER}/Release/*.a opencv/3rdparty/lib/Release/*.a opencv/lib/Release/*.a ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Release/*.a)
+  SET(LIBTOOL_LINKING_COMMAND libtool -static -o ${CMAKE_SOURCE_DIR}/libs/iOS/${IOS_RELEASE_FILENAME} bin${UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER}/Release/*.a opencv/3rdparty/lib/Release/*.a ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Release/*.a)
   IF (EMGU_CV_WITH_TESSERACT)
      LIST(APPEND LIBTOOL_LINKING_COMMAND libs/Release/*.a)
   ENDIF()
@@ -3631,13 +3660,37 @@ IF (IOS)
     COMMAND ${LIBTOOL_LINKING_COMMAND}
     WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
     COMMENT "Linking target for ${IOS_ARCH}")
-  add_custom_command(TARGET ${the_target}
-    POST_BUILD
-    COMMAND lipo -create -output ${CMAKE_SOURCE_DIR}/libs/iOS/libcvextern.a ${CMAKE_SOURCE_DIR}/libs/iOS/libcvextern_*.a
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    COMMENT "Linking multiple arch into a single file")
+    
+  SET(IPHONEOS_STATIC_LIB_FILE ${CMAKE_SOURCE_DIR}/libs/iOS/libcvextern_iphoneos.a)
+  SET(IPHONESIMULATOR_STATIC_LIB_FILE ${CMAKE_SOURCE_DIR}/libs/iOS/libcvextern_simulator.a)
+  
+  IF (IPHONESIMULATOR)
+    IF (EXISTS ${IPHONEOS_STATIC_LIB_FILE})
+    ELSE()
+      FILE(WRITE ${IPHONEOS_STATIC_LIB_FILE} "")
+    ENDIF()
+    add_custom_command(TARGET ${the_target}
+      POST_BUILD
+      COMMAND lipo -create -output ${IPHONESIMULATOR_STATIC_LIB_FILE} ${CMAKE_SOURCE_DIR}/libs/iOS/libcvextern_simulator_*.a
+      WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+      COMMENT "Linking multiple arch into a single file for iOS simulator") 
+  ELSEIF(IPHONEOS)
+    IF (EXISTS ${IPHONESIMULATOR_STATIC_LIB_FILE})
+    ELSE()
+      FILE(WRITE ${IPHONESIMULATOR_STATIC_LIB_FILE} "")
+    ENDIF()
+    add_custom_command(TARGET ${the_target}
+      POST_BUILD
+      COMMAND lipo -create -output ${IPHONEOS_STATIC_LIB_FILE} ${CMAKE_SOURCE_DIR}/libs/iOS/libcvextern_iphoneos_*.a
+      WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+      COMMENT "Linking multiple arch into a single file for iOS device")
+  ENDIF()
   INSTALL(FILES
-    "${CMAKE_SOURCE_DIR}/libs/iOS/libcvextern.a"
+    "${IPHONEOS_STATIC_LIB_FILE}"
+    DESTINATION "libs/iOS/"
+    COMPONENT emgucv_binary)
+  INSTALL(FILES
+    "${IPHONESIMULATOR_STATIC_LIB_FILE}"
     DESTINATION "libs/iOS/"
     COMPONENT emgucv_binary)
 ELSEIF (ANDROID)
@@ -3661,7 +3714,7 @@ ELSEIF (APPLE)
     XCODE_ATTRIBUTE_STRIPFLAGS "-x -u -r"
     XCODE_ATTRIBUTE_DEAD_CODE_STRIPPING "YES"
     )
-  IF ("${EMGUCV_ARCH}" STREQUAL "arm64")
+  IF ("${${CMAKE_SYSTEM_PROCESSOR}}" STREQUAL "arm64")
     SET(CV_EXTERN_FILE_NAME "libcvextern_arm64.dylib")
     SET(LIBUSB_FILE_NAME "libusb_arm64.dylib")
   ELSE()
@@ -3683,10 +3736,17 @@ ELSEIF (APPLE)
     COMMENT "Linking target for all architectures and ouputing to ${UNMANAGED_LIBRARY_OUTPUT_PATH}/../libcvextern.dylib")
 
 
-  IF(EMGU_CV_WITH_DEPTHAI)  
+  IF(EMGU_CV_WITH_DEPTHAI)
+    IF ("${EMGUCV_ARCH}" STREQUAL "arm64")
+       # Apple silicon
+       SET(LIBUSB_PATH /opt/homebrew/opt/libusb/lib/libusb-1.0.0.dylib)
+    ELSE()
+       # Intel Mac
+       SET(LIBUSB_PATH /usr/local/opt/libusb/lib/libusb-1.0.0.dylib)
+    ENDIF()
     add_custom_command(TARGET ${the_target}
       POST_BUILD
-      COMMAND cp -f /usr/local/opt/libusb/lib/libusb-1.0.0.dylib ${UNMANAGED_LIBRARY_OUTPUT_PATH}/../arch/${LIBUSB_FILE_NAME}
+      COMMAND cp -f ${LIBUSB_PATH} ${UNMANAGED_LIBRARY_OUTPUT_PATH}/../arch/${LIBUSB_FILE_NAME}
       COMMENT "Copying file to ${UNMANAGED_LIBRARY_OUTPUT_PATH}/../arch/${LIBUSB_FILE_NAME}")
     add_custom_command(TARGET ${the_target}
       POST_BUILD

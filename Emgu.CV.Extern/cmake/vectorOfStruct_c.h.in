@@ -14,9 +14,9 @@
 
 #include "vectors_c.h"
 
-${VECTOR_ADDITIONAL_INCLUDE}
-
 ${COMPILATION_CONDITION_C_OPEN}
+
+${VECTOR_ADDITIONAL_INCLUDE}
 
 //----------------------------------------------------------------------------
 //
@@ -42,6 +42,8 @@ CVAPI(void) VectorOf${VECTOR_NAME}Release(std::vector< ${VECTOR_ELEMENT} >** v);
 CVAPI(void) VectorOf${VECTOR_NAME}CopyData(std::vector< ${VECTOR_ELEMENT} >* v,  ${VECTOR_ELEMENT}* data);
 
 CVAPI(${VECTOR_ELEMENT}*) VectorOf${VECTOR_NAME}GetStartAddress(std::vector< ${VECTOR_ELEMENT} >* v);
+
+CVAPI(void*) VectorOf${VECTOR_NAME}GetEndAddress(std::vector< ${VECTOR_ELEMENT} >* v);
 
 CVAPI(void) VectorOf${VECTOR_NAME}GetItem(std::vector<  ${VECTOR_ELEMENT} >* vec, int index,  ${VECTOR_ELEMENT}* element);
 

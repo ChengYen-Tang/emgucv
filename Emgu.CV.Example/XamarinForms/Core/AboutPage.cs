@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
+using Emgu.CV.Cuda;
 using Emgu.CV.Dnn;
 using Emgu.CV.ML;
 using Xamarin.Forms;
@@ -17,15 +18,24 @@ namespace Emgu.CV.XamarinForms
         public AboutPage()
         {
 
-            String openclTxt = String.Format("Has OpenCL: {0}", CvInvoke.HaveOpenCL);
-
             String lineBreak = "<br/>";
+
+            String openclTxt = String.Format("Has OpenCL: {0}", CvInvoke.HaveOpenCL);
             if (CvInvoke.HaveOpenCL)
             {
                 openclTxt = String.Format("{0}{1}Use OpenCL: {2}{1}<textarea rows=\"5\">{3}</textarea>{1}",
                    openclTxt, lineBreak,
                    CvInvoke.UseOpenCL,
                    CvInvoke.OclGetPlatformsSummary());
+            }
+
+            String cudaTxt = String.Format("Has CUDA: {0}", CudaInvoke.HasCuda);
+            if (CudaInvoke.HasCuda)
+            {
+                cudaTxt = String.Format("{0}{1}<textarea rows=\"5\">{2}</textarea>{1}",
+                    cudaTxt, 
+                    lineBreak,
+                    CudaInvoke.GetCudaDevicesSummary());
             }
 
             var openCVConfigDict = CvInvoke.ConfigDict;
@@ -51,6 +61,15 @@ namespace Emgu.CV.XamarinForms
 
             String osDescription = Emgu.Util.Platform.OperationSystem.ToString();
 
+            String parallelText;
+            List<String> parallelBackendText = new List<string>();
+            foreach (var parallelBackend in CvInvoke.AvailableParallelBackends)
+            {
+                parallelBackendText.Add(String.Format("<p>{0}</p>", parallelBackend));
+            }
+
+            parallelText = String.Join("", parallelBackendText.ToArray());
+
             Content =
                   new WebView()
                   {
@@ -72,6 +91,8 @@ textarea { width: 100%; margin: 0; padding: 0; border - width: 0; }
 <a href=mailto:support@emgu.com>Email Support</a> <br/><br/>
 <H4> OpenCL Info </H4>
 " + openclTxt + @"
+<H4> Cuda Info </H4>
+" + cudaTxt + @"
 <H4> OS: </H4>
 " + osDescription + @"
 <H4> OS Architecture: </H4>
@@ -80,10 +101,16 @@ textarea { width: 100%; margin: 0; padding: 0; border - width: 0; }
 " + RuntimeInformation.FrameworkDescription + @"
 <H4> Process Architecture: </H4>
 " + RuntimeInformation.ProcessArchitecture + @"
+<H4> Available Parallel Backends: </H4>
+" + parallelText + @"
 <H4> Dnn Backends: </H4>
 " + dnnText + @"
-<H4> Capture Backends: </H4>
-" + (haveVideoio ? GetCaptureInfo() : "Videoio backend not supported.") + @"
+<H4> Capture Backends (VideoCapture from device): </H4>
+" + (haveVideoio ? GetBackendInfo(CvInvoke.Backends) : "Videoio backend not supported.") + @"
+<H4> Stream Backends (VideoCapture from file/Stream): </H4>
+" + (haveVideoio ? GetBackendInfo(CvInvoke.StreamBackends) : "Videoio backend not supported.") + @"
+<H4> VideoWriter Backends: </H4>
+" + (haveVideoio ? GetBackendInfo(CvInvoke.WriterBackends) : "Videoio backend not supported.") + @"
 <H4> Build Info </H4>
 <textarea rows=""30"">"
                         + CvInvoke.BuildInformation + @"
@@ -96,17 +123,15 @@ textarea { width: 100%; margin: 0; padding: 0; border - width: 0; }
                   };
         }
 
-        private static String GetCaptureInfo()
+        private static String GetBackendInfo(Backend[] backends)
         {
-            var captureBackends = CvInvoke.Backends;
-            List<String> captureBackendsText = new List<string>();
-            foreach (var captureBackend in captureBackends)
+            List<String> backendsText = new List<string>();
+            foreach (var backend in backends)
             {
-                captureBackendsText.Add(String.Format("<p>{0} - {1}</p>", captureBackend.ID, captureBackend.Name));
+                backendsText.Add(String.Format("<p>{0} - {1}</p>", backend.ID, backend.Name));
             }
 
-            String captureText = String.Join("", captureBackendsText.ToArray());
-            return captureText;
+            return String.Join("", backendsText.ToArray());
         }
     }
 }

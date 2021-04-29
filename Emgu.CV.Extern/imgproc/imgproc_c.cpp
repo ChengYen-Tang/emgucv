@@ -678,11 +678,63 @@ void cveMaxRect(CvRect* rect1, CvRect* rect2, CvRect* result)
 	*result = cvMaxRect(rect1, rect2);
 }
 
-int cveConnectedComponents(cv::_InputArray* image, cv::_OutputArray* labels, int connectivity, int type)
+int cveConnectedComponents(cv::_InputArray* image, cv::_OutputArray* labels, int connectivity, int ltype, int ccltype)
 {
-	return cv::connectedComponents(*image, *labels, connectivity, type);
+	return cv::connectedComponents(*image, *labels, connectivity, ltype, ccltype);
 }
-int cveConnectedComponentsWithStats(cv::_InputArray* image, cv::_OutputArray* labels, cv::_OutputArray* stats, cv::_OutputArray* centroids, int connectivity, int type)
+int cveConnectedComponentsWithStats(cv::_InputArray* image, cv::_OutputArray* labels, cv::_OutputArray* stats, cv::_OutputArray* centroids, int connectivity, int ltype, int ccltype)
 {
-	return cv::connectedComponentsWithStats(*image, *labels, *stats, *centroids, connectivity, type);
+	return cv::connectedComponentsWithStats(*image, *labels, *stats, *centroids, connectivity, ltype, ccltype);
+}
+
+cv::segmentation::IntelligentScissorsMB* cveIntelligentScissorsMBCreate()
+{
+	return new cv::segmentation::IntelligentScissorsMB();
+}
+void cveIntelligentScissorsMBRelease(cv::segmentation::IntelligentScissorsMB** ptr)
+{
+	delete* ptr;
+	*ptr = 0;
+}
+void cveIntelligentScissorsMBSetWeights(
+	cv::segmentation::IntelligentScissorsMB* ptr,
+	float weightNonEdge,
+	float weightGradientDirection,
+	float weightGradientMagnitude)
+{
+	ptr->setWeights(weightNonEdge, weightGradientDirection, weightGradientMagnitude);
+}
+void cveIntelligentScissorsMBSetEdgeFeatureCannyParameters(
+	cv::segmentation::IntelligentScissorsMB* ptr,
+	double threshold1,
+	double threshold2,
+	int apertureSize,
+	bool L2gradient)
+{
+	ptr->setEdgeFeatureCannyParameters(threshold1, threshold2, apertureSize, L2gradient);
+}
+void cveIntelligentScissorsMBApplyImage(cv::segmentation::IntelligentScissorsMB* ptr, cv::_InputArray* image)
+{
+	ptr->applyImage(*image);
+}
+void cveIntelligentScissorsMBApplyImageFeatures(
+	cv::segmentation::IntelligentScissorsMB* ptr,
+	cv::_InputArray* nonEdge,
+	cv::_InputArray* gradientDirection,
+	cv::_InputArray* gradientMagnitude,
+	cv::_InputArray* image)
+{
+	ptr->applyImageFeatures(*nonEdge, *gradientDirection, *gradientMagnitude, image ? *image : static_cast<cv::InputArray>(cv::noArray()));
+}
+void cveIntelligentScissorsMBBuildMap(cv::segmentation::IntelligentScissorsMB* ptr, CvPoint* sourcePt)
+{
+	ptr->buildMap(*sourcePt);
+}
+void cveIntelligentScissorsMBGetContour(
+	cv::segmentation::IntelligentScissorsMB* ptr,
+	CvPoint* targetPt,
+	cv::_OutputArray* contour,
+	bool backward)
+{
+	ptr->getContour(*targetPt, *contour, backward);
 }

@@ -24,8 +24,8 @@ IF(EMGU_CV_WITH_DEPTHAI)
   include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/HunterGate.cmake")
   
   HunterGate(
-    URL "https://github.com/cpp-pm/hunter/archive/v0.23.296.tar.gz"
-    SHA1 "232f5022ee1d45955a7e8d3e1720f31bac1bb534"
+    URL "https://github.com/cpp-pm/hunter/archive/v0.23.297.tar.gz"
+    SHA1 "3319fe6a3b08090df7df98dee75134d68e2ef5a3"
     FILEPATH ${CMAKE_CURRENT_LIST_DIR}/Emgu.CV.Extern/depthai-core/cmake/Hunter/config.cmake # Add depthai-core config (hunter limitation)
   )
 
@@ -42,8 +42,12 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.9.4)
 cmake_policy(SET CMP0022 NEW)
 cmake_policy(SET CMP0069 NEW)
 
-IF(EMGU_CV_WITH_DEPTHAI )
+IF(EMGU_CV_WITH_DEPTHAI)
+  # Always build depthai-core as a static library
+  SET(BUILD_SHARED_LIBS_CACHE ${BUILD_SHARED_LIBS})
+  SET(BUILD_SHARED_LIBS OFF)
   add_subdirectory(Emgu.CV.Extern/depthai-core EXCLUDE_FROM_ALL)
+  SET(BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS_CACHE})
 ENDIF()
 
 #IF(ANDROID)
@@ -158,7 +162,7 @@ IF("${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
   SET(CMAKE_SHARED_LINKER_FLAGS "-flto ${CMAKE_SHARED_LINKER_FLAGS}")
 ENDIF()
 
-IF( NOT (NETFX_CORE OR ANDROID OR IOS ) )
+#IF( NOT (NETFX_CORE OR ANDROID OR IOS ) )
   
   #  IF (NOT WIN32)
   #    SET(CMAKE_C_FLAGS_RELEASE "-fPIC ${CMAKE_C_FLAGS_RELEASE}")
@@ -168,20 +172,20 @@ IF( NOT (NETFX_CORE OR ANDROID OR IOS ) )
   #    SET(CMAKE_EXE_LINKER_FLAGS "-fPIC ${CMAKE_EXE_LINKER_FLAGS}")
   #    SET(CMAKE_SHARED_LINKER_FLAGS "-fPIC ${CMAKE_SHARED_LINKER_FLAGS}")
   #  ENDIF()
-  IF (WIN32)
-    SET(BUILD_SHARED_LIBS_CACHE ${BUILD_SHARED_LIBS})
-    SET(BUILD_SHARED_LIBS OFF)
-    SET(CMAKE_EXPORT_NO_PACKAGE_REGISTRY ON)
+  #IF (WIN32)
+  #  SET(BUILD_SHARED_LIBS_CACHE ${BUILD_SHARED_LIBS})
+  #  SET(BUILD_SHARED_LIBS OFF)
+  #  SET(CMAKE_EXPORT_NO_PACKAGE_REGISTRY ON)
     
     #ADD_SUBDIRECTORY(vtk) # always build vtk as static library
 	    
-    SET(BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS_CACHE})
-  ENDIF()
+    #SET(BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS_CACHE})
+  #ENDIF()
   #  IF (NOT WIN32)
   #    SET(CMAKE_C_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE_CACHE} )
   #    SET(CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE_CACHE})
   #  ENDIF()
-ENDIF()
+#ENDIF()
 
 SET(OPENCV_SUBFOLDER ${CMAKE_CURRENT_SOURCE_DIR}/opencv)
 SET(OPENCV_CONTRIB_SUBFOLDER ${CMAKE_CURRENT_SOURCE_DIR}/opencv_contrib)
@@ -366,9 +370,21 @@ ELSEIF("${EMGUCV_ARCH}" STREQUAL "ubuntu_arm")
 ELSEIF("${EMGUCV_ARCH}" STREQUAL "raspbian_arm")
   SET(UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER "/arm")
 ELSEIF("${EMGUCV_ARCH}" STREQUAL "arm64")
-  SET(UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER "/arm64")
+  IF(IPHONEOS)
+    SET(UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER "/iphoneos_arm64")
+  ELSEIF(IPHONESIMULATOR)
+    SET(UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER "/simulator_arm64")
+  ELSE()
+    SET(UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER "/arm64")
+  ENDIF()
 ELSEIF("${EMGUCV_ARCH}" STREQUAL "arm")
-  SET(UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER "/arm")  
+  IF(IPHONEOS)
+    SET(UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER "/iphoneos_arm")
+  ELSEIF(IPHONESIMULATOR)
+    SET(UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER "/simulator_arm")
+  ELSE()
+    SET(UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER "/arm")
+  ENDIF()
 ELSE()
   SET(UNMANAGED_LIBRARY_OUTPUT_SUBFOLDER "")
 ENDIF()
@@ -448,7 +464,7 @@ IF(IOS)
   ENDIF()
   #CHECK_BINARY_EXIST("libs/iOS" "libcvextern_arm64.a" HAVE_IOS_ARM64 ${IS_IOS_ARM64_BUILD})
 ENDIF()
-CHECK_BINARY_EXIST("libs/iOS" "libcvextern.a" HAVE_IOS ${IS_IOS_BUILD})
+CHECK_BINARY_EXIST("libs/iOS" "libcvextern_iphoneos.a" HAVE_IOS ${IS_IOS_BUILD})
 
 #IF(NOT HAVE_IOS)
 #  IF(HAVE_IOS_I386 OR HAVE_IOS_X86_64 OR HAVE_IOS_ARMV7S OR HAVE_IOS_ARMV7 OR HAVE_IOS_ARM64)
@@ -1280,15 +1296,20 @@ IF(WITH_CUDA)
     
 	SET(EMGUCV_WINDOWS_NUGET_TITLE "${EMGUCV_WINDOWS_NUGET_TITLE} with CUDA support")
 	SET(EMGU_CUDA_NUGET_TITLE "Native x64 CUDA dependency for EMGU CV")
-	SET(EMGU_CUDA_VERSION "${npp_major}.${npp_minor}.${npp_build}")
-	IF ( (${cuda_major}) AND (${cuda_minor}) )
-		SET(EMGU_CUDA_VERSION "${cuda_major}.${cuda_minor}.${npp_build}")
+	#SET(EMGU_CUDA_VERSION "${npp_major}.${npp_minor}.${npp_build}")
+	IF ( (${cuda_major}) AND (${cuda_minor}) AND (${npp_build}) )
+	  SET(EMGU_CUDA_VERSION "${cuda_major}.${cuda_minor}.${npp_build}")
+	ELSEIF (${CUDA_VERSION})
+	  SET(EMGU_CUDA_VERSION "${CUDA_VERSION}")
 	ENDIF()
+	
+	
 	SET(EMGU_CUDART_VERSION "${EMGU_CUDA_VERSION}")
 	SET(EMGU_CUFFT_VERSION "${EMGU_CUDA_VERSION}")
 	SET(EMGU_CUFFT_NUGET_TITLE "Native x64 FFT component for CUDA")
 	#SET(EMGU_CUFFT_NUGET_FILE_LIST "<file src=\"${EMGU_CUFFT_NUGET_ID}.targets\" target=\"build\\${EMGU_CUFFT_NUGET_ID}.targets\" />")
-    SET(EMGU_CUDNN_VERSION "${CUDNN_MAJOR_VERSION}.${CUDNN_MINOR_VERSION}.${CUDNN_PATCH_VERSION}")
+    #SET(EMGU_CUDNN_VERSION "${CUDNN_MAJOR_VERSION}.${CUDNN_MINOR_VERSION}.${CUDNN_PATCH_VERSION}")
+	SET(EMGU_CUDNN_VERSION "${CUDNN_VERSION}")
 	SET(EMGU_CUDNN_NUGET_TITLE "Native x64 DNN component for CUDA")
 	#SET(EMGU_CUDNN_NUGET_FILE_LIST "<file src=\"${EMGU_CUDNN_NUGET_ID}.targets\" target=\"build\\${EMGU_CUDNN_NUGET_ID}.targets\" />")
 	SET(EMGU_CUDNN_CNN_NUGET_TITLE "Native x64 CNN component for CUDA DNN")
@@ -1398,7 +1419,10 @@ IF(WITH_CUDA)
 	MESSAGE(STATUS "<<<<<<<<<<<<<<<< npp_build: ${npp_build} >>>>>>>>>>>>>>>>>>>>>> ")
 	MESSAGE(STATUS "<<<<<<<<<<<<<<<< cuda_major: ${cuda_major} >>>>>>>>>>>>>>>>>>>>>> ")
 	MESSAGE(STATUS "<<<<<<<<<<<<<<<< cuda_minor: ${cuda_minor} >>>>>>>>>>>>>>>>>>>>>> ")
-	MESSAGE(STATUS "<<<<<<<<<<<<<<<< cuda_build: ${cuda_build} >>>>>>>>>>>>>>>>>>>>>> ")
+	#MESSAGE(STATUS "<<<<<<<<<<<<<<<< cuda_build: ${cuda_build} >>>>>>>>>>>>>>>>>>>>>> ")
+    MESSAGE(STATUS "<<<<<<<<<<<<<<<< cudnn_version: ${CUDNN_VERSION} >>>>>>>>>>>>>>>>>>>>>> ")
+	#MESSAGE(STATUS "<<<<<<<<<<<<<<<< cudnn_minor: ${CUDNN_MINOR_VERSION} >>>>>>>>>>>>>>>>>>>>>> ")
+	#MESSAGE(STATUS "<<<<<<<<<<<<<<<< cudnn_patch: ${CUDNN_PATCH_VERSION} >>>>>>>>>>>>>>>>>>>>>> ")
 
 	#IF ("${npp_major}" STREQUAL "")
 	#  MESSAGE(FATAL_ERROR "CUDA is enabled, but failed to detect npp_major version")
@@ -1872,6 +1896,7 @@ ELSEIF (WIN32)
       ENDIF()
     ENDIF()
     
+	SET(DEBUGGER_VISUALIZER_UNMANAGED_FILES_DEPLOY_SUBFOLDER "runtimes\\\\win-x86\\\\native\\\\")
     MESSAGE(STATUS "HAS_WINDESKTOP_X86_NATIVE_BINARY: ${HAS_WINDESKTOP_X86_NATIVE_BINARY}")
     #FOREACH (file ${UNMANAGED_DLL_32BIT})
     #	MESSAGE(STATUS "WILL DEPLOY ${file} with DEBUGGER VISUALIZER")
@@ -1943,7 +1968,7 @@ ELSEIF (WIN32)
 	FOREACH (file ${DEBUGGER_VISUALIZER_UNMANAGED_FILES})
 	  SET(INSTALL_DEBUGER_VISUALIZER_COMMAND
 	    "${INSTALL_DEBUGER_VISUALIZER_COMMAND}
-	CopyFiles /SILENT '\\\$INSTDIR\\\\libs\\\\${DEBUGGER_VISUALIZER_UNMANAGED_FILES_SUBFOLDER}${file}.dll' '$${vs_version}_INSTALL_FOLDER${DEBUGGER_VISUALIZER_UNMANAGED_FILES_SUBFOLDER}'")
+	CopyFiles /SILENT '\\\$INSTDIR\\\\libs\\\\${DEBUGGER_VISUALIZER_UNMANAGED_FILES_SUBFOLDER}${file}.dll' '$${vs_version}_INSTALL_FOLDER${DEBUGGER_VISUALIZER_UNMANAGED_FILES_DEPLOY_SUBFOLDER}'")
 	#MESSAGE(STATUS " --- Adding libs\${DEBUGGER_VISUALIZER_UNMANAGED_FILES_SUBFOLDER}${file}.dll to debuger visualizer folder '$${vs_version}_INSTALL_FOLDER${DEBUGGER_VISUALIZER_UNMANAGED_FILES_SUBFOLDER}' for ${vs_description}")
 	ENDFOREACH()
 	
@@ -1995,6 +2020,7 @@ ELSEIF (WIN32)
     StrCpy $${vs_version}_INSTALL_FOLDER '\\\$R1..\\\\Packages\\\\Debugger\\\\Visualizers\\\\'")
 	ENDIF()
 	
+	#UNINSTALL managed dlls
 	SET(UNINSTALL_DEBUGER_VISUALIZER_COMMAND
 	"${UNINSTALL_DEBGER_VISUALIZER_COMMAND}
 	IfErrors uninstallDebuggerVisualizer4${vs_version}Done")
@@ -2004,10 +2030,11 @@ ELSEIF (WIN32)
 	Delete '$${vs_version}_INSTALL_FOLDER${file}.dll'")
 	ENDFOREACH()
 	
+	#UNINSTALL native DLLs
 	FOREACH (file ${DEBUGGER_VISUALIZER_UNMANAGED_FILES})
 	  SET(UNINSTALL_DEBUGER_VISUALIZER_COMMAND
 	    "${UNINSTALL_DEBUGER_VISUALIZER_COMMAND}
-	Delete '$${vs_version}_INSTALL_FOLDER${DEBUGGER_VISUALIZER_UNMANAGED_FILES_SUBFOLDER}${file}.dll'")
+	Delete '$${vs_version}_INSTALL_FOLDER${DEBUGGER_VISUALIZER_UNMANAGED_FILES_DEPLOY_SUBFOLDER}${file}.dll'")
 	ENDFOREACH()
 	
 	#IF(DEFINED UNIVERSAL_BUILD)
